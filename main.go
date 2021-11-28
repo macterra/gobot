@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"log"
 	"os"
 
@@ -58,12 +59,35 @@ func main() {
 					// We need to send an Acknowledge to the slack server
 					socketClient.Ack(*event.Request)
 					// Now we have an Events API event, but this event type can in turn be many types, so we actually need another type switch
-					log.Println(eventsAPIEvent)
+					//log.Println(eventsAPIEvent)
+					err := handleEventMessage(eventsAPIEvent)
+					if err != nil {
+						// Replace with actual err handeling
+						log.Fatal(err)
+					}
 				}
-
 			}
 		}
 	}(ctx, client, socketClient)
 
 	socketClient.Run()
+}
+
+// handleEventMessage will take an event and handle it properly based on the type of event
+func handleEventMessage(event slackevents.EventsAPIEvent) error {
+	switch event.Type {
+	// First we check if this is an CallbackEvent
+	case slackevents.CallbackEvent:
+
+		innerEvent := event.InnerEvent
+		// Yet Another Type switch on the actual Data to see if its an AppMentionEvent
+		switch ev := innerEvent.Data.(type) {
+		case *slackevents.AppMentionEvent:
+			// The application has been mentioned since this Event is a Mention event
+			log.Println(ev)
+		}
+	default:
+		return errors.New("unsupported event type")
+	}
+	return nil
 }
